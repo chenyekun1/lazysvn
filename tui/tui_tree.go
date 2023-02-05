@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"sort"
 	"strings"
 
@@ -95,23 +97,67 @@ func (t *Tui) TuiTreeUpdate(repos string, path string, table *tview.Table) {
 	close(worker_ch)
 }
 
+func passSearch(searchbar *tview.TextView, main *tview.Table, screen *TuiScreen) {
+	for _, searchInfo := range screen.searchRes {
+		main.GetCell(searchInfo.row, 0).SetBackgroundColor(tcell.ColorBlack)
+	}
+	screen.searchRes = []searchInfo{}
+	for i := 0; i <main.GetRowCount(); i++ {
+		fileName := main.GetCell(i, 0).Text
+		if strings.Contains(fileName, searchbar.GetText(true)[1:]) {
+			main.GetCell(i, 0).SetBackgroundColor(tcell.ColorYellow)
+			screen.searchRes = append(screen.searchRes, searchInfo{i})
+		}
+	}
+}
+
+func passSearchJump(main *tview.Table, screen *TuiScreen, LOG *log.Logger) {
+	idx, _ := main.GetSelection()
+	if len(screen.searchRes) <= 0 {
+		return
+	}
+	LOG.Println(screen.searchRes)
+	for _, searchInfo := range screen.searchRes {
+		if idx < searchInfo.row {
+			main.Select(searchInfo.row, 0)
+			break
+		}
+	}
+}
+
 func (t *Tui) NewTuiTree(repos string, path string) {
+	logFile, _ := os.Create("debug.log")
+	debug := log.New(logFile, "", log.Llongfile)
+	debug.Println(tcell.KeyBS)
 	s := TuiScreen{
 		prim: tview.NewGrid(),
+		searchRes: []searchInfo{},
 	}
-	statusbar := TuiStatusBar(fmt.Sprintf("[%s]tree:%s", repos, path))
+	statusbar := tview.NewTextView().
+			SetTextAlign(tview.AlignLeft)
+	statusbar.SetBackgroundColor(tcell.ColorBlue)
+	statusbar.SetText(fmt.Sprintf("[%s]log:%s", repos, path))
+	searchbar := tview.NewTextView().
+			SetTextAlign(tview.AlignLeft)
+	searchbar.SetText(":")
 	main := tview.NewTable().SetSelectable(true, false)
 	s.prim.
-		SetRows(0, 1).
+		SetRows(0, 1, 1).
 		SetBorders(false).
 		AddItem(main, 0, 0, 1, 3, 0, 0, false).
-		AddItem(statusbar, 1, 0, 1, 3, 0, 0, false)
+		AddItem(statusbar, 1, 0, 1, 3, 0, 0, false).
+		AddItem(searchbar, 2, 0, 1, 3, 0, 0, false)
 
 	t.TuiTreeUpdate(repos, path, main)
 
 	s.prim.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		debug.Println(event.Key())
 		switch event.Key() {
 		case tcell.KeyEnter:
+			if t.searchMod == true {
+				t.searchMod = false
+				return nil
+			}
 			row, _ := main.GetSelection()
 			fi := main.GetCell(row, 0).Text
 			if fi == "." {
@@ -128,6 +174,12 @@ func (t *Tui) NewTuiTree(repos string, path string) {
 				t.ChangeScreen(repos, "tree:"+changedpath)
 			}
 			return nil
+		case tcell.KeyESC: {
+			if t.searchMod == true {
+				t.searchMod = false
+				return nil
+			}
+		}
 		case tcell.KeyDown:
 			row, _ := main.GetSelection()
 			if row < main.GetRowCount()-1 {
@@ -140,7 +192,26 @@ func (t *Tui) NewTuiTree(repos string, path string) {
 			row--
 			main.Select(row, 0)
 			return nil
+		case 127: // back space
+			if t.searchMod == true {
+				if len(searchbar.GetText(true)) <= 1 {
+					return nil
+				}
+				searchbar.SetText(searchbar.GetText(true)[0:len(searchbar.GetText(true)) - 1])
+				passSearch(searchbar, main, &s)
+			}
+			return nil
+		case tcell.KeyCtrlN:
+			passSearchJump(main, &s, debug)
+			return nil
 		case tcell.KeyRune:
+			if t.searchMod == true {
+				input := event.Rune()
+				searchbar.SetText(searchbar.GetText(true) + string(input))
+				passSearch(searchbar, main, &s)
+
+				return nil
+			}
 			switch event.Rune() {
 			case 'k':
 				row, _ := main.GetSelection()
@@ -171,6 +242,10 @@ func (t *Tui) NewTuiTree(repos string, path string) {
 				return nil
 			case 'q':
 				t.BackScreen()
+				return nil
+			case '/':
+				t.searchMod = true
+				searchbar.SetText(":")
 				return nil
 			}
 		}

@@ -14,6 +14,7 @@ type Tui struct {
 	root              *tview.Grid
 	config            Config
 	svnworker_limiter chan struct{}
+	searchMod         bool
 }
 
 type ConfigRepos struct {
@@ -24,8 +25,13 @@ type Config struct {
 	Repos map[string]ConfigRepos `yaml:"repos"`
 }
 
+type searchInfo struct {
+	row    int
+}
+
 type TuiScreen struct {
 	prim *tview.Grid
+	searchRes []searchInfo
 }
 
 func New(repos_url string) *Tui {

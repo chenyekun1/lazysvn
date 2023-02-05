@@ -20,3 +20,4 @@ func TuiStatusBar(text string) tview.Primitive {
 	v.SetText(text)
 	return v
 }
+
