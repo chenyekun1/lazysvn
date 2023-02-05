@@ -163,6 +163,12 @@ func (t *Tui) NewTuiTree(repos string, path string) {
 				changedpath := path + fi
 				t.ChangeScreen(repos, "log:"+changedpath)
 				return nil
+			case 'G':
+				main.Select(main.GetRowCount()-1, 0)
+				return nil
+			case 'g':
+				main.Select(0, 0)
+				return nil
 			case 'q':
 				t.BackScreen()
 				return nil
