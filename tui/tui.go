@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"container/list"
 
 	"github.com/rivo/tview"
 )
@@ -31,7 +32,7 @@ type searchInfo struct {
 
 type TuiScreen struct {
 	prim *tview.Grid
-	searchRes []searchInfo
+	searchRes *list.List
 }
 
 func New(repos_url string) *Tui {

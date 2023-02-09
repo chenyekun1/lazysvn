@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	repos_url := "."
+	repos_url := "/home/cyk/y2_server/logic"
 
 	if len(os.Args) >= 2 {
 		repos_url = os.Args[1]
